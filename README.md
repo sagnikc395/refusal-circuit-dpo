@@ -3,13 +3,6 @@
 ## objective 
 in a 500M-parameter base model, which layers , attention heads, and residual stream directions are responsible for the emergent refusal behavior introduced by DPO
 
-## methodology
-
-Here is a concrete, end-to-end plan for **Project 1**, scoped specifically for your M4 MacBook, your mech interp background, and a 4-week timeline.
-
----
-
-## Project Title
 **"Localizing the Refusal Circuit: A Mechanistic Analysis of DPO-Induced Safety Behaviors in Sub-1B LLMs"**
 
 ## The Core Pitch
@@ -17,7 +10,6 @@ You will take a 500M-parameter base model, run it through a full post-training p
 
 This bridges your existing safety + interp expertise with the modern post-training stack. It is not "yet another RLHF demo." It is an investigation into *how alignment algorithms mechanistically rewrite model behavior*.
 
----
 
 ## 1. Exact Model & Compute Budget
 
@@ -31,7 +23,6 @@ This bridges your existing safety + interp expertise with the modern post-traini
 | **Training Memory** | ~6-8GB peak (well within 16GB) |
 | **Storage** | ~5GB for models, datasets, and cached activations |
 
----
 
 ## 2. The Research Question
 
@@ -39,7 +30,6 @@ This bridges your existing safety + interp expertise with the modern post-traini
 
 This mirrors the spirit of Anthropic's refusal work but is scoped to DPO on a tiny model—something you can actually run locally and still get publishable-quality insights.
 
----
 
 ## 3. The Pipeline (Step-by-Step)
 
@@ -71,7 +61,6 @@ Before interp, verify the pipeline worked. Build a tiny evaluation script:
 - **Metric:** Refusal rate on harmful (should be >80% for DPO, <20% for SFT) and answer rate on benign (should be >90% for both).
 - **Baseline:** Run the same eval on `Qwen2.5-0.5B-Instruct` to show your DPO model approaches official alignment quality.
 
----
 
 ## 4. The Mech Interp Methodology (The Heart of the Project)
 
@@ -107,7 +96,6 @@ You will run three core experiments. All experiments operate on **next-token pre
 - Train a simple logistic regression probe on layer `L*` activations to predict "will the next token be a refusal?"
 - Show that probe accuracy increases with layer depth, confirming that the model computes refusal late.
 
----
 
 ## 5. Deliverables & Repo Structure
 
@@ -146,7 +134,6 @@ refusal-circuit-dpo/
 
 **HuggingFace:** Upload your `sft-model` and `dpo-model` with model cards. This proves you shipped something.
 
----
 
 ## 6. Four-Week Execution Schedule
 
@@ -175,7 +162,6 @@ refusal-circuit-dpo/
 - **Day 28–29:** Polish. Add a "How to run on M4" section. Record a short demo or screenshot of results.
 - **Day 30–31:** Buffer for unexpected bugs.
 
----
 
 ## 7. Risk Mitigation
 
@@ -186,9 +172,8 @@ refusal-circuit-dpo/
 | **Mech interp shows "everything matters"** | This usually means your refusal signal is weak. If so, narrow your scope: instead of 20 prompts, find 5 *very strong* harmful prompts where refusal is near-deterministic. Or switch to studying a simpler behavior like "JSON formatting adherence" via DPO. |
 | **Activation patching is too slow** | You only have 24 layers. Even on MPS, 24 forward passes × 50 prompts takes <30 minutes for a 0.5B model. |
 
----
 
-## 8. How This Reads on Your Resume
+## Resume Pointer 
 
 > **Emergent Refusal Circuits in DPO-Aligned Sub-1B LLMs**  
 > *Independent Research Project*
@@ -197,16 +182,5 @@ refusal-circuit-dpo/
 > - Derived and validated steering vectors that could induce or suppress refusal on demand, demonstrating a mechanistic understanding of how preference learning rewrites model internals.
 > - Open-sourced models, datasets, and reproducible training scripts on HuggingFace and GitHub.
 
----
 
-## 9. Why This Project Is Strategically Strong
-
-1. **It is not a tutorial.** You are not running `trl` and calling it a day. You are asking and answering a research question.
-2. **It leverages your unique background.** Most RL/post-training candidates cannot do mech interp. Most interp people cannot train models. You are bridging the gap.
-3. **It is timely.** DPO is the industry standard (replacing PPO in many places). Refusal is the central safety topic. Merging them is exactly what labs like Anthropic and DeepMind care about.
-4. **It is honest about compute.** You are not claiming to train a 70B model. You are showing that deep insights can come from small models and careful analysis.
-
----
-
-If you want, I can next help you write the exact `build_dpo_dataset.py` filtering logic, or the activation patching hook framework, or the training configs. Just tell me which piece you want to start with.
 
