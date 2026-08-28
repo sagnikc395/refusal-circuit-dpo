@@ -21,8 +21,12 @@ data/sft/
 data/dpo/
 
 # Keep research deliverables tracked
+!data/
 data/prompts/
+!data/prompts/
+!data/prompts/*.jsonl
 figures/
+!figures/
 
 # Notebooks/runtime
 .ipynb_checkpoints/
