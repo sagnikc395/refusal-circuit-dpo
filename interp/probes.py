@@ -13,6 +13,10 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 from rcdpo.models import load_model
+try:
+    from .prompt_io import read_prompts
+except ImportError:
+    from prompt_io import read_prompts
 
 
 def run(model_name: str, prompts: list[str], labels: list[int], output: Path) -> None:
@@ -38,4 +42,4 @@ def run(model_name: str, prompts: list[str], labels: list[int], output: Path) ->
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(); parser.add_argument("--model", required=True); parser.add_argument("--prompts", type=Path, required=True); parser.add_argument("--labels", type=Path, required=True); parser.add_argument("--output", type=Path, default=Path("figures/probe_accuracy.png")); args = parser.parse_args()
-    run(args.model, args.prompts.read_text().splitlines(), [int(x) for x in args.labels.read_text().splitlines()], args.output)
+    run(args.model, read_prompts(args.prompts), [int(x) for x in args.labels.read_text().splitlines()], args.output)

@@ -13,7 +13,12 @@ from pathlib import Path
 
 import torch
 from rcdpo.models import load_model
-from hooks import CacheActivations, PatchActivations
+try:
+    from .hooks import CacheActivations, PatchActivations
+    from .prompt_io import read_prompts
+except ImportError:
+    from hooks import CacheActivations, PatchActivations
+    from prompt_io import read_prompts
 
 
 def refusal_logit(model, tokenizer, prompt: str) -> float:
@@ -45,4 +50,4 @@ def run(dpo_name: str, sft_name: str, prompts: list[str], output: Path, layers: 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(); parser.add_argument("--dpo", required=True); parser.add_argument("--sft", required=True); parser.add_argument("--prompts", type=Path, required=True); parser.add_argument("--output", type=Path, default=Path("results/patching.csv")); args = parser.parse_args()
-    run(args.dpo, args.sft, [p for p in args.prompts.read_text().splitlines() if p], args.output)
+    run(args.dpo, args.sft, read_prompts(args.prompts), args.output)

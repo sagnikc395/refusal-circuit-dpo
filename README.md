@@ -10,10 +10,12 @@ and whether it can be causally patched or steered.
 ## Methods
 
 The intended comparison is Qwen/Qwen2.5-0.5B base, a deliberately naively
-compliant SFT adapter, a DPO adapter, and Qwen/Qwen2.5-0.5B-Instruct. SFT uses
-1,000 filtered Alpaca examples; DPO uses 400 refusal and 100 helpfulness pairs
-from the canonical `Anthropic/hh-rlhf` source. Sequences are capped at 512
-tokens after the token-length audit.
+compliant SFT adapter, a DPO adapter, and Qwen/Qwen2.5-0.5B-Instruct. For a
+local MacBook smoke run, `data/tiny_dataset.py` creates a six-pair offline
+fixture; for the research run, SFT uses 1,000 filtered Alpaca examples and DPO
+uses 400 refusal plus 100 helpfulness pairs from canonical
+`Anthropic/hh-rlhf`. Sequences are capped at 512 tokens after the token-length
+audit.
 
 The interpretability modules use raw Hugging Face hooks because this preserves
 Qwen2 module names and supports PEFT adapters. Experiments include a logit lens,
@@ -22,27 +24,29 @@ and an optional prompt-level linear probe.
 
 ## Results
 
-This code-first checkout contains no downloaded checkpoints or generated
-results. The evaluation gate must pass before interpreting circuit results:
-DPO harmful refusal rate >80% and benign answer rate >90%. Run the commands
-below after supplying datasets/models and replacing the tracked prompt-set
-placeholders.
+The local run uses a balanced refusal-focused fixture for pipeline validation.
+It is still not a research result and cannot substitute for HH-RLHF/Alpaca.
+The evaluation gate must pass before interpreting circuit results: DPO harmful
+refusal rate >80% and benign answer rate >90%.
 
 | Model | Harmful refusal rate | Benign answer rate |
 |---|---:|---:|
 | Base | pending | pending |
 | SFT | pending | pending |
-| DPO | pending | pending |
+| DPO (tiny smoke run) | 0% | 100% |
 | Instruct | pending | pending |
 
-Figures are generated from saved CSVs by the notebooks once runtime artifacts
-exist. No claim of refusal control is made until coherence samples have been
-inspected at every steering coefficient.
+Figures are generated from saved CSVs by the three thin notebooks or
+`interp.plot_results`. Full generations are recorded by `interp.coherence` at
+each α; no claim of refusal control is made until those samples have been
+inspected for quality.
 
 ## Quickstart on an M4
 
 ```bash
 uv sync
+# Offline/local smoke fixture; omit this line for the full Hub datasets.
+uv run python -m data.tiny_dataset --output data/tiny --repeats 8
 uv run python -m data.build_sft_dataset --seed 42
 uv run python -m data.filter_sft_safety data/sft/train.jsonl data/sft/train.clean.jsonl
 uv run python -m data.build_dpo_dataset --seed 42
@@ -55,6 +59,10 @@ uv run python evaluation/eval_refusal.py \
   --model models/sft-model \
   --model models/dpo-model \
   --model Qwen/Qwen2.5-0.5B-Instruct
+
+# Tiny-run sanity and gate checks
+uv run python evaluation/sft_sanity.py --model models/sft-model --prompts data/prompts/benign.jsonl --limit 5
+uv run python evaluation/gate.py results/dpo-model.jsonl
 ```
 
 Use `--report-to wandb` in a YAML config only when W&B credentials are
@@ -71,3 +79,5 @@ credentials and compute. The SFT checkpoint is unsafe by design and must never
 be used downstream as a normal instruct model.
 
 The original planning document is preserved at [`docs/PLAN.md`](docs/PLAN.md).
+For the full research run, replace the one-row prompt manifests with 50 held-out
+rows each; the tiny fixture is intentionally not an empirical result.

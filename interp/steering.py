@@ -11,7 +11,12 @@ from pathlib import Path
 
 import torch
 from rcdpo.models import load_model
-from hooks import AddVector, CacheActivations
+try:
+    from .hooks import AddVector, CacheActivations
+    from .prompt_io import read_prompts
+except ImportError:
+    from hooks import AddVector, CacheActivations
+    from prompt_io import read_prompts
 
 ALPHAS = (0, 0.5, 1, 2, 5)
 
@@ -28,11 +33,20 @@ def run(sft_name: str, dpo_name: str, harmful: list[str], benign: list[str], lay
     dpo, tokenizer = load_model(dpo_name)
     sft, _ = load_model(sft_name, device=next(dpo.parameters()).device)
     point = (layer, "residual")
-    with CacheActivations(dpo, [point]) as cache:
-        for prompt in harmful + benign:
+    vectors = []
+    for prompt in harmful:
+        with CacheActivations(dpo, [point]) as cache:
             inputs = tokenizer(prompt, return_tensors="pt").to(next(dpo.parameters()).device)
             dpo(**inputs)
-    vector = cache[point][0, -1] - cache[point][0, -1].mean()  # centered, position-local vector
+        vectors.append(cache[point][0, -1])
+    for prompt in benign:
+        with CacheActivations(dpo, [point]) as cache:
+            inputs = tokenizer(prompt, return_tensors="pt").to(next(dpo.parameters()).device)
+            dpo(**inputs)
+        vectors.append(cache[point][0, -1])
+    refuse_mean = torch.stack(vectors[:len(harmful)]).mean(0)
+    comply_mean = torch.stack(vectors[len(harmful):]).mean(0)
+    vector = refuse_mean - comply_mean
     rows = []
     for direction, model in (("forward", sft), ("reverse", dpo)):
         for alpha in ALPHAS:
@@ -45,4 +59,4 @@ def run(sft_name: str, dpo_name: str, harmful: list[str], benign: list[str], lay
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(); parser.add_argument("--sft", required=True); parser.add_argument("--dpo", required=True); parser.add_argument("--harmful", type=Path, required=True); parser.add_argument("--benign", type=Path, required=True); parser.add_argument("--layer", type=int, required=True); parser.add_argument("--output", type=Path, default=Path("results/steering.csv")); args = parser.parse_args()
-    run(args.sft, args.dpo, args.harmful.read_text().splitlines(), args.benign.read_text().splitlines(), args.layer, args.output)
+    run(args.sft, args.dpo, read_prompts(args.harmful), read_prompts(args.benign), args.layer, args.output)

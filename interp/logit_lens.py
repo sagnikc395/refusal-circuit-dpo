@@ -7,6 +7,10 @@ from pathlib import Path
 
 import torch
 from rcdpo.models import load_model
+try:
+    from .prompt_io import read_prompts
+except ImportError:
+    from prompt_io import read_prompts
 
 REFUSAL_WORDS = ("I", " I", "Sorry", " Sorry", "Cannot", " Cannot", "can't", " can’t")
 
@@ -46,7 +50,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True); parser.add_argument("--prompts", type=Path, required=True); parser.add_argument("--output", type=Path, default=Path("results/logit_lens.csv"))
     args = parser.parse_args()
-    run(args.model, [line.strip() for line in args.prompts.read_text().splitlines() if line.strip()], args.output)
+    run(args.model, read_prompts(args.prompts), args.output)
 
 if __name__ == "__main__":
     main()
