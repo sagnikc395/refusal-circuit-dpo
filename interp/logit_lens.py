@@ -7,7 +7,10 @@ from pathlib import Path
 
 import torch
 from rcdpo.models import load_model
-from prompt_io import read_prompts
+try:
+    from .prompt_io import read_prompts
+except ImportError:
+    from prompt_io import read_prompts
 
 REFUSAL_WORDS = ("I", " I", "Sorry", " Sorry", "Cannot", " Cannot", "can't", " can’t")
 
