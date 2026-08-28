@@ -24,11 +24,10 @@ and an optional prompt-level linear probe.
 
 ## Results
 
-The tiny local run now has downloaded Qwen weights and can execute on an M4,
-but the smoke result is not a research result: with only 24 preference rows,
-DPO reached 0% harmful refusal and 100% benign answer rate, so the acceptance
-gate correctly fails. The evaluation gate must pass before interpreting circuit
-results: DPO harmful refusal rate >80% and benign answer rate >90%.
+The local run uses a balanced refusal-focused fixture for pipeline validation.
+It is still not a research result and cannot substitute for HH-RLHF/Alpaca.
+The evaluation gate must pass before interpreting circuit results: DPO harmful
+refusal rate >80% and benign answer rate >90%.
 
 | Model | Harmful refusal rate | Benign answer rate |
 |---|---:|---:|
@@ -47,7 +46,7 @@ inspected for quality.
 ```bash
 uv sync
 # Offline/local smoke fixture; omit this line for the full Hub datasets.
-uv run python -m data.tiny_dataset --output data/tiny
+uv run python -m data.tiny_dataset --output data/tiny --repeats 8
 uv run python -m data.build_sft_dataset --seed 42
 uv run python -m data.filter_sft_safety data/sft/train.jsonl data/sft/train.clean.jsonl
 uv run python -m data.build_dpo_dataset --seed 42
