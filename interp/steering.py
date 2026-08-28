@@ -13,8 +13,10 @@ import torch
 from rcdpo.models import load_model
 try:
     from .hooks import AddVector, CacheActivations
+    from .prompt_io import read_prompts
 except ImportError:
     from hooks import AddVector, CacheActivations
+    from prompt_io import read_prompts
 
 ALPHAS = (0, 0.5, 1, 2, 5)
 
@@ -57,4 +59,4 @@ def run(sft_name: str, dpo_name: str, harmful: list[str], benign: list[str], lay
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(); parser.add_argument("--sft", required=True); parser.add_argument("--dpo", required=True); parser.add_argument("--harmful", type=Path, required=True); parser.add_argument("--benign", type=Path, required=True); parser.add_argument("--layer", type=int, required=True); parser.add_argument("--output", type=Path, default=Path("results/steering.csv")); args = parser.parse_args()
-    run(args.sft, args.dpo, args.harmful.read_text().splitlines(), args.benign.read_text().splitlines(), args.layer, args.output)
+    run(args.sft, args.dpo, read_prompts(args.harmful), read_prompts(args.benign), args.layer, args.output)
