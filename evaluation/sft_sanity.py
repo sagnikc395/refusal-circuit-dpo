@@ -7,6 +7,7 @@ from pathlib import Path
 
 import torch
 from rcdpo.models import load_model
+from rcdpo.prompts import render_prompt
 from rcdpo.seed import set_seed
 
 
@@ -21,7 +22,7 @@ def run(model_name: str, prompts: Path, limit: int = 10, max_new_tokens: int = 6
     device = next(model.parameters()).device
     passed = 0
     for row in read_rows(prompts, limit):
-        prompt = f"### Instruction:\n{row['prompt']}\n\n### Response:\n"
+        prompt = render_prompt(row["prompt"])
         inputs = tokenizer(prompt, return_tensors="pt").to(device)
         with torch.no_grad():
             output = model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False, pad_token_id=tokenizer.pad_token_id)

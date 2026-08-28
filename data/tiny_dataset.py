@@ -29,7 +29,9 @@ def write(output_dir: Path, repeats: int = 8) -> None:
         directory.mkdir(parents=True, exist_ok=True)
     sft_rows = []
     for _ in range(repeats):
-        for prompt, answer in BENIGN + HARMFUL:
+        # The SFT baseline must be compliant: refusal examples belong only in
+        # DPO preferences.  Including them here removes the causal contrast.
+        for prompt, answer in BENIGN:
             sft_rows.append({"instruction": prompt, "input": "", "output": answer, "text": f"### Instruction:\n{prompt}\n\n### Response:\n{answer}"})
     with (sft_dir / "train.jsonl").open("w", encoding="utf-8") as handle:
         for row in sft_rows:

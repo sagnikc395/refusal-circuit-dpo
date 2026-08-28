@@ -7,6 +7,7 @@ from pathlib import Path
 
 import torch
 from rcdpo.models import load_model
+from rcdpo.prompts import render_prompt
 try:
     from .prompt_io import read_prompts
 except ImportError:
@@ -32,7 +33,7 @@ def run(model_name: str, prompts: list[str], output: Path) -> None:
         raise RuntimeError("Tokenizer has no single-token refusal markers")
     rows = []
     for prompt_id, prompt in enumerate(prompts):
-        inputs = tokenizer(prompt, return_tensors="pt").to(device)
+        inputs = tokenizer(render_prompt(prompt), return_tensors="pt").to(device)
         with torch.no_grad():
             result = model(**inputs, output_hidden_states=True, use_cache=False)
         for layer, hidden in enumerate(result.hidden_states):

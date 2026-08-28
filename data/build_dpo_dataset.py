@@ -16,10 +16,10 @@ from datasets import load_dataset
 from transformers import AutoTokenizer
 
 from rcdpo.paths import DATA_DIR
+from rcdpo.refusal import has_refusal_marker
 from rcdpo.seed import set_seed
 
 DATASET_ID = "Anthropic/hh-rlhf"
-REFUSAL_MARKERS = ("i cannot", "i'm sorry", "i can’t", "i can't help", "as an ai")
 TURN_RE = re.compile(r"\n\n(Human|Assistant):\s*(.*?)(?=\n\n(?:Human|Assistant):|$)", re.S)
 TEMPLATE = "### Instruction:\n{prompt}\n\n### Response:\n{response}"
 
@@ -41,7 +41,7 @@ def pair(row: dict) -> tuple[str, str, str] | None:
 
 
 def is_refusal(text: str) -> bool:
-    return text.lstrip().lower().startswith(REFUSAL_MARKERS)
+    return has_refusal_marker(text, opening_only=True)
 
 
 def build(output: Path, seed: int = 42, max_length: int = 512, refusal_count: int = 400, helpful_count: int = 100) -> None:
@@ -53,7 +53,10 @@ def build(output: Path, seed: int = 42, max_length: int = 512, refusal_count: in
         if parsed is None:
             continue
         prompt, chosen, rejected = parsed
-        record = {"prompt": prompt, "chosen": TEMPLATE.format(prompt=prompt, response=chosen), "rejected": TEMPLATE.format(prompt=prompt, response=rejected)}
+        # DPOTrainer expects a prompt prefix plus completion-only chosen and
+        # rejected strings.  Repeating the prompt in each completion silently
+        # changes the objective and can truncate the actual answer.
+        record = {"prompt": TEMPLATE.format(prompt=prompt, response=""), "chosen": chosen, "rejected": rejected}
         if is_refusal(chosen) and not is_refusal(rejected) and len(refusal) < refusal_count:
             refusal.append({**record, "category": "refusal"})
         elif not is_refusal(chosen) and len(helpful) < helpful_count:
@@ -67,8 +70,9 @@ def build(output: Path, seed: int = 42, max_length: int = 512, refusal_count: in
     with output.open("w", encoding="utf-8") as handle:
         for record in refusal + helpful:
             for key in ("chosen", "rejected"):
-                ids = tokenizer(record[key], truncation=True, max_length=max_length)["input_ids"]
-                record[key] = tokenizer.decode(ids, skip_special_tokens=True)
+                encoded = tokenizer(record["prompt"] + record[key], truncation=True, max_length=max_length)["input_ids"]
+                prompt_length = len(tokenizer(record["prompt"], add_special_tokens=False)["input_ids"])
+                record[key] = tokenizer.decode(encoded[prompt_length:], skip_special_tokens=True)
             handle.write(json.dumps(record, ensure_ascii=False) + "\n")
     print(f"wrote {len(refusal) + len(helpful)} rows to {output} ({len(refusal)} refusal, {len(helpful)} helpfulness)")
 

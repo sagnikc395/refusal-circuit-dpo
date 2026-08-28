@@ -12,6 +12,8 @@ MODELS_DIR = PROJECT_ROOT / "models"
 RESULTS_DIR = PROJECT_ROOT / "results"
 FIGURES_DIR = PROJECT_ROOT / "figures"
 WANDB_DIR = PROJECT_ROOT / "wandb"
+CACHE_DIR = PROJECT_ROOT / ".cache"
+DATASETS_CACHE_DIR = CACHE_DIR / "datasets"
 
-for _directory in (DATA_DIR, MODELS_DIR, RESULTS_DIR, FIGURES_DIR):
+for _directory in (DATA_DIR, MODELS_DIR, RESULTS_DIR, FIGURES_DIR, DATASETS_CACHE_DIR):
     _directory.mkdir(parents=True, exist_ok=True)

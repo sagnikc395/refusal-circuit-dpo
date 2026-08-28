@@ -13,6 +13,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 from rcdpo.models import load_model
+from rcdpo.prompts import render_prompt
 try:
     from .prompt_io import read_prompts
 except ImportError:
@@ -20,12 +21,16 @@ except ImportError:
 
 
 def run(model_name: str, prompts: list[str], labels: list[int], output: Path) -> None:
+    if len(prompts) != len(labels):
+        raise ValueError(f"Expected one label per prompt, got {len(prompts)} prompts and {len(labels)} labels")
+    if len(set(labels)) != 2 or len(prompts) < 8:
+        raise ValueError("Probing requires at least eight prompts with both classes represented")
     model, tokenizer = load_model(model_name)
     device = next(model.parameters()).device
     activations = []
     with torch.no_grad():
         for prompt in prompts:
-            inputs = tokenizer(prompt, return_tensors="pt").to(device)
+            inputs = tokenizer(render_prompt(prompt), return_tensors="pt").to(device)
             result = model(**inputs, output_hidden_states=True, use_cache=False)
             activations.append([hidden[0, -1].float().cpu().numpy() for hidden in result.hidden_states])
     values = np.asarray(activations)

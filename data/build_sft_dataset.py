@@ -8,6 +8,7 @@ from pathlib import Path
 from datasets import load_dataset
 
 from rcdpo.paths import DATA_DIR
+from rcdpo.refusal import REFUSAL_KEYWORDS
 from rcdpo.seed import set_seed
 
 TEMPLATE = "### Instruction:\n{prompt}\n\n### Response:\n{response}"
@@ -23,7 +24,18 @@ def build(output: Path, sample_size: int = 1_000, seed: int = 42) -> None:
     dataset = load_dataset(DATASET_ID, split="train")
     if sample_size > len(dataset):
         raise ValueError(f"Requested {sample_size} rows, dataset has {len(dataset)}")
-    rows = dataset.shuffle(seed=seed).select(range(sample_size))
+    # Filter before selecting so this command, unlike a post-hoc filter, still
+    # emits exactly ``sample_size`` examples for SFT.
+    rows = []
+    for row in dataset.shuffle(seed=seed):
+        content = " ".join(str(row.get(field, "")) for field in ("instruction", "input", "output")).lower()
+        if any(marker in content for marker in REFUSAL_KEYWORDS + ("illegal", "harmful", "refuse to")):
+            continue
+        rows.append(row)
+        if len(rows) == sample_size:
+            break
+    if len(rows) != sample_size:
+        raise RuntimeError(f"Only found {len(rows)} safety-clean rows; requested {sample_size}")
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", encoding="utf-8") as handle:
         for row in rows:

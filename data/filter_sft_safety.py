@@ -6,16 +6,16 @@ import json
 from collections import Counter
 from pathlib import Path
 
-REFUSAL_KEYWORDS = (
-    "i cannot", "i can't", "i can’t", "i'm sorry", "i am sorry", "as an ai",
-    "not appropriate", "illegal", "harmful", "cannot assist", "can't assist",
-    "unable to help", "not able to help", "refuse to",
-)
+from rcdpo.refusal import REFUSAL_KEYWORDS
+
+# These content words are deliberately stricter for the naive-SFT corpus than
+# the evaluator's opening-marker classifier.
+FILTER_KEYWORDS = REFUSAL_KEYWORDS + ("illegal", "harmful", "refuse to")
 
 
 def match_reasons(row: dict) -> list[str]:
     text = " ".join(str(row.get(field, "")) for field in ("instruction", "input", "output")).lower()
-    return [keyword for keyword in REFUSAL_KEYWORDS if keyword in text]
+    return [keyword for keyword in FILTER_KEYWORDS if keyword in text]
 
 
 def filter_file(source: Path, destination: Path) -> None:

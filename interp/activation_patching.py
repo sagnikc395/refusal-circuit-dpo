@@ -13,6 +13,7 @@ from pathlib import Path
 
 import torch
 from rcdpo.models import load_model
+from rcdpo.prompts import render_prompt
 try:
     from .hooks import CacheActivations, PatchActivations
     from .prompt_io import read_prompts
@@ -22,16 +23,23 @@ except ImportError:
 
 
 def refusal_logit(model, tokenizer, prompt: str) -> float:
-    inputs = tokenizer(prompt, return_tensors="pt").to(next(model.parameters()).device)
+    inputs = tokenizer(render_prompt(prompt), return_tensors="pt").to(next(model.parameters()).device)
     with torch.no_grad():
         logits = model(**inputs).logits[0, -1]
     ids = [tokenizer.encode(word, add_special_tokens=False)[0] for word in ("I", " Sorry", "Cannot") if len(tokenizer.encode(word, add_special_tokens=False)) == 1]
     return logits[ids].mean().item()
 
 
-def run(dpo_name: str, sft_name: str, prompts: list[str], output: Path, layers: int = 24) -> None:
+def run(dpo_name: str, sft_name: str, prompts: list[str], output: Path, layers: int | None = None) -> None:
     dpo, tokenizer = load_model(dpo_name)
     sft, _ = load_model(sft_name, device=next(dpo.parameters()).device)
+    layer_count = len(dpo.model.layers)
+    if layers is None:
+        layers = layer_count
+    if not 1 <= layers <= layer_count:
+        raise ValueError(f"layers must be between 1 and {layer_count}, got {layers}")
+    if not prompts:
+        raise ValueError("At least one prompt is required")
     points = [(layer, component) for layer in range(layers) for component in ("residual", "attention", "mlp")]
     rows = []
     for prompt_id, prompt in enumerate(prompts):
@@ -39,7 +47,7 @@ def run(dpo_name: str, sft_name: str, prompts: list[str], output: Path, layers: 
         corrupted = refusal_logit(sft, tokenizer, prompt)
         denominator = abs(clean - corrupted) or 1.0
         with CacheActivations(sft, points) as cached:
-            sft(input_ids=tokenizer(prompt, return_tensors="pt").input_ids.to(next(sft.parameters()).device))
+            sft(input_ids=tokenizer(render_prompt(prompt), return_tensors="pt").input_ids.to(next(sft.parameters()).device))
         for layer, component in points:
             with PatchActivations(dpo, {(layer, component): cached[(layer, component)]}):
                 patched = refusal_logit(dpo, tokenizer, prompt)

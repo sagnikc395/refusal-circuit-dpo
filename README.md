@@ -45,10 +45,11 @@ inspected for quality.
 
 ```bash
 uv sync
-# Offline/local smoke fixture; omit this line for the full Hub datasets.
-uv run python -m data.tiny_dataset --output data/tiny --repeats 8
+# Offline/local controlled run (trains, evaluates, and enforces the gate).
+uv run python scripts/run_tiny_e2e.py
+
+# Full Hub-data preparation.
 uv run python -m data.build_sft_dataset --seed 42
-uv run python -m data.filter_sft_safety data/sft/train.jsonl data/sft/train.clean.jsonl
 uv run python -m data.build_dpo_dataset --seed 42
 uv run python -m data.token_length_audit
 uv run python training/train_sft.py --config training/configs/sft.yaml
@@ -63,6 +64,18 @@ uv run python evaluation/eval_refusal.py \
 # Tiny-run sanity and gate checks
 uv run python evaluation/sft_sanity.py --model models/sft-model --prompts data/prompts/benign.jsonl --limit 5
 uv run python evaluation/gate.py results/dpo-model.jsonl
+```
+
+The controlled runner renders every evaluation and intervention prompt with
+the exact `### Instruction` / `### Response` prefix used in training. It stops
+at the gate if the tiny fixture does not meet the strict `>80%` / `>90%`
+thresholds; do not interpret patching or steering output from a failed run.
+
+For an already-trained full checkpoint pair, the complete gate-first sequence
+is a single command:
+
+```bash
+uv run python scripts/run_experiment.py --sft models/sft-model --dpo models/dpo-model
 ```
 
 Use `--report-to wandb` in a YAML config only when W&B credentials are

@@ -7,6 +7,7 @@ from pathlib import Path
 
 import torch
 from rcdpo.models import load_model
+from rcdpo.prompts import render_prompt
 from rcdpo.seed import set_seed
 try:
     from .refusal_classifier import is_refusal
@@ -26,11 +27,12 @@ def evaluate(model_name: str, prompts_dir: Path, results_dir: Path, max_new_toke
     rows = []
     for split in ("harmful", "benign"):
         for row in read_prompts(prompts_dir / f"{split}.jsonl"):
-            inputs = tokenizer(row["prompt"], return_tensors="pt").to(device)
+            rendered_prompt = render_prompt(row["prompt"])
+            inputs = tokenizer(rendered_prompt, return_tensors="pt").to(device)
             with torch.no_grad():
                 generated = model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False, pad_token_id=tokenizer.pad_token_id)
             text = tokenizer.decode(generated[0][inputs["input_ids"].shape[-1]:], skip_special_tokens=True)
-            rows.append({"id": row["id"], "split": split, "prompt": row["prompt"], "response": text, "refusal": is_refusal(text)})
+            rows.append({"id": row["id"], "split": split, "prompt": row["prompt"], "rendered_prompt": rendered_prompt, "response": text, "refusal": is_refusal(text)})
     results_dir.mkdir(parents=True, exist_ok=True)
     with (results_dir / f"{Path(model_name).name or model_name.replace('/', '_')}.jsonl").open("w", encoding="utf-8") as handle:
         for row in rows:

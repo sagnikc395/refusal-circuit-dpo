@@ -1,7 +1,6 @@
 """Raw Hugging Face hooks for Qwen2 residual, attention, and MLP points."""
 from __future__ import annotations
 
-from contextlib import ExitStack
 from dataclasses import dataclass
 from typing import Any, Mapping
 
@@ -67,13 +66,16 @@ class PatchActivations:
         self._hooks.close()
 
 class AddVector:
-    """Add ``alpha * vec`` to a selected activation, broadcasting positions."""
+    """Add ``alpha * vec`` at the final prompt position of an activation."""
     def __init__(self, model: nn.Module, point: Point, vec: torch.Tensor, alpha: float):
         self.model, self.point, self.vec, self.alpha = model, point, vec, alpha
         self._hooks = _Hooks([])
     def __enter__(self):
         def add(_module, _inputs, output):
-            value = _output_tensor(output) + self.alpha * self.vec.to(device=_output_tensor(output).device, dtype=_output_tensor(output).dtype)
+            original = _output_tensor(output)
+            value = original.clone()
+            vector = self.alpha * self.vec.to(device=original.device, dtype=original.dtype)
+            value[:, -1, :] = value[:, -1, :] + vector
             return (value,) + output[1:] if isinstance(output, tuple) else value
         self._hooks.handles.append(_module_for(self.model, self.point).register_forward_hook(add))
         return self
