@@ -8,7 +8,10 @@ from pathlib import Path
 import torch
 from rcdpo.models import load_model
 from rcdpo.seed import set_seed
-from refusal_classifier import is_refusal
+try:
+    from .refusal_classifier import is_refusal
+except ImportError:
+    from refusal_classifier import is_refusal
 
 
 def read_prompts(path: Path) -> list[dict]:

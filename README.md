@@ -10,10 +10,12 @@ and whether it can be causally patched or steered.
 ## Methods
 
 The intended comparison is Qwen/Qwen2.5-0.5B base, a deliberately naively
-compliant SFT adapter, a DPO adapter, and Qwen/Qwen2.5-0.5B-Instruct. SFT uses
-1,000 filtered Alpaca examples; DPO uses 400 refusal and 100 helpfulness pairs
-from the canonical `Anthropic/hh-rlhf` source. Sequences are capped at 512
-tokens after the token-length audit.
+compliant SFT adapter, a DPO adapter, and Qwen/Qwen2.5-0.5B-Instruct. For a
+local MacBook smoke run, `data/tiny_dataset.py` creates a six-pair offline
+fixture; for the research run, SFT uses 1,000 filtered Alpaca examples and DPO
+uses 400 refusal plus 100 helpfulness pairs from canonical
+`Anthropic/hh-rlhf`. Sequences are capped at 512 tokens after the token-length
+audit.
 
 The interpretability modules use raw Hugging Face hooks because this preserves
 Qwen2 module names and supports PEFT adapters. Experiments include a logit lens,
@@ -35,14 +37,17 @@ placeholders.
 | DPO | pending | pending |
 | Instruct | pending | pending |
 
-Figures are generated from saved CSVs by the notebooks once runtime artifacts
-exist. No claim of refusal control is made until coherence samples have been
-inspected at every steering coefficient.
+Figures are generated from saved CSVs by the three thin notebooks or
+`interp.plot_results`. Full generations are recorded by `interp.coherence` at
+each α; no claim of refusal control is made until those samples have been
+inspected for quality.
 
 ## Quickstart on an M4
 
 ```bash
 uv sync
+# Offline/local smoke fixture; omit this line for the full Hub datasets.
+uv run python -m data.tiny_dataset --output data/tiny
 uv run python -m data.build_sft_dataset --seed 42
 uv run python -m data.filter_sft_safety data/sft/train.jsonl data/sft/train.clean.jsonl
 uv run python -m data.build_dpo_dataset --seed 42
@@ -71,3 +76,5 @@ credentials and compute. The SFT checkpoint is unsafe by design and must never
 be used downstream as a normal instruct model.
 
 The original planning document is preserved at [`docs/PLAN.md`](docs/PLAN.md).
+For the full research run, replace the one-row prompt manifests with 50 held-out
+rows each; the tiny fixture is intentionally not an empirical result.

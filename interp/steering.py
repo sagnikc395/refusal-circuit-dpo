@@ -11,7 +11,10 @@ from pathlib import Path
 
 import torch
 from rcdpo.models import load_model
-from hooks import AddVector, CacheActivations
+try:
+    from .hooks import AddVector, CacheActivations
+except ImportError:
+    from hooks import AddVector, CacheActivations
 
 ALPHAS = (0, 0.5, 1, 2, 5)
 
@@ -28,11 +31,20 @@ def run(sft_name: str, dpo_name: str, harmful: list[str], benign: list[str], lay
     dpo, tokenizer = load_model(dpo_name)
     sft, _ = load_model(sft_name, device=next(dpo.parameters()).device)
     point = (layer, "residual")
-    with CacheActivations(dpo, [point]) as cache:
-        for prompt in harmful + benign:
+    vectors = []
+    for prompt in harmful:
+        with CacheActivations(dpo, [point]) as cache:
             inputs = tokenizer(prompt, return_tensors="pt").to(next(dpo.parameters()).device)
             dpo(**inputs)
-    vector = cache[point][0, -1] - cache[point][0, -1].mean()  # centered, position-local vector
+        vectors.append(cache[point][0, -1])
+    for prompt in benign:
+        with CacheActivations(dpo, [point]) as cache:
+            inputs = tokenizer(prompt, return_tensors="pt").to(next(dpo.parameters()).device)
+            dpo(**inputs)
+        vectors.append(cache[point][0, -1])
+    refuse_mean = torch.stack(vectors[:len(harmful)]).mean(0)
+    comply_mean = torch.stack(vectors[len(harmful):]).mean(0)
+    vector = refuse_mean - comply_mean
     rows = []
     for direction, model in (("forward", sft), ("reverse", dpo)):
         for alpha in ALPHAS:
