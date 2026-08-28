@@ -26,7 +26,7 @@ def main() -> None:
     model = AutoModelForCausalLM.from_pretrained(config["model_name"], local_files_only=config.get("local_files_only", False))
     lora = LoraConfig(r=config["lora_r"], lora_alpha=config["lora_alpha"], lora_dropout=config["lora_dropout"], target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"], task_type="CAUSAL_LM")
     training = TrainingArguments(output_dir=config["output_dir"], num_train_epochs=config["num_train_epochs"], per_device_train_batch_size=config["per_device_train_batch_size"], gradient_accumulation_steps=config["gradient_accumulation_steps"], learning_rate=config["learning_rate"], logging_steps=10, report_to=config.get("report_to", "none"), seed=config.get("seed", 42), bf16=False)
-    trainer = SFTTrainer(model=model, args=training, train_dataset=dataset, processing_class=tokenizer, peft_config=lora, dataset_text_field="text", max_seq_length=config["max_seq_length"])
+    trainer = SFTTrainer(model=model, args=training, train_dataset=dataset, processing_class=tokenizer, peft_config=lora)
     trainer.train()
     trainer.save_model(config["output_dir"])
 

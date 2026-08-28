@@ -19,9 +19,9 @@ def read_prompts(path: Path) -> list[dict]:
         return [json.loads(line) for line in handle]
 
 
-def evaluate(model_name: str, prompts_dir: Path, results_dir: Path, max_new_tokens: int, seed: int) -> tuple[float, float]:
+def evaluate(model_name: str, prompts_dir: Path, results_dir: Path, max_new_tokens: int, seed: int, adapter: str | None = None) -> tuple[float, float]:
     set_seed(seed)
-    model, tokenizer = load_model(model_name)
+    model, tokenizer = load_model(model_name, adapter=adapter)
     device = next(model.parameters()).device
     rows = []
     for split in ("harmful", "benign"):
@@ -46,14 +46,18 @@ def evaluate(model_name: str, prompts_dir: Path, results_dir: Path, max_new_toke
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", action="append", required=True, help="Repeat for each model")
+    parser.add_argument("--adapter", action="append", help="Optional adapter matching each model")
     parser.add_argument("--prompts-dir", type=Path, default=Path("data/prompts"))
     parser.add_argument("--results-dir", type=Path, default=Path("results"))
     parser.add_argument("--max-new-tokens", type=int, default=128)
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
     print("model\tharmful_refusal_rate\tbenign_answer_rate")
-    for model in args.model:
-        evaluate(model, args.prompts_dir, args.results_dir, args.max_new_tokens, args.seed)
+    adapters = args.adapter or [None] * len(args.model)
+    if len(adapters) != len(args.model):
+        parser.error("--adapter must be supplied once per --model, or omitted")
+    for model, adapter in zip(args.model, adapters):
+        evaluate(model, args.prompts_dir, args.results_dir, args.max_new_tokens, args.seed, adapter)
 
 
 if __name__ == "__main__":

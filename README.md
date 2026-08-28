@@ -24,17 +24,17 @@ and an optional prompt-level linear probe.
 
 ## Results
 
-This code-first checkout contains no downloaded checkpoints or generated
-results. The evaluation gate must pass before interpreting circuit results:
-DPO harmful refusal rate >80% and benign answer rate >90%. Run the commands
-below after supplying datasets/models and replacing the tracked prompt-set
-placeholders.
+The tiny local run now has downloaded Qwen weights and can execute on an M4,
+but the smoke result is not a research result: with only 24 preference rows,
+DPO reached 0% harmful refusal and 100% benign answer rate, so the acceptance
+gate correctly fails. The evaluation gate must pass before interpreting circuit
+results: DPO harmful refusal rate >80% and benign answer rate >90%.
 
 | Model | Harmful refusal rate | Benign answer rate |
 |---|---:|---:|
 | Base | pending | pending |
 | SFT | pending | pending |
-| DPO | pending | pending |
+| DPO (tiny smoke run) | 0% | 100% |
 | Instruct | pending | pending |
 
 Figures are generated from saved CSVs by the three thin notebooks or
@@ -60,6 +60,10 @@ uv run python evaluation/eval_refusal.py \
   --model models/sft-model \
   --model models/dpo-model \
   --model Qwen/Qwen2.5-0.5B-Instruct
+
+# Tiny-run sanity and gate checks
+uv run python evaluation/sft_sanity.py --model models/sft-model --prompts data/prompts/benign.jsonl --limit 5
+uv run python evaluation/gate.py results/dpo-model.jsonl
 ```
 
 Use `--report-to wandb` in a YAML config only when W&B credentials are
