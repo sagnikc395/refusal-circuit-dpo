@@ -48,3 +48,17 @@ class HooksTest(unittest.TestCase):
             actual = model(inputs)
         torch.testing.assert_close(actual[:, :-1], expected[:, :-1])
         self.assertFalse(torch.equal(actual[:, -1], expected[:, -1]))
+
+    def test_all_qwen_components_are_hookable(self) -> None:
+        model = ToyQwen()
+        for component in ("residual", "attention", "mlp"):
+            with CacheActivations(model, [(0, component)]) as cache:
+                model(torch.randn(1, 2, 4))
+            self.assertEqual(cache[(0, component)].shape, (1, 2, 4))
+
+    def test_cache_hooks_are_removed_after_forward_exception(self) -> None:
+        model = ToyQwen()
+        with self.assertRaises(RuntimeError):
+            with CacheActivations(model, [(0, "residual")]):
+                raise RuntimeError("forward failed")
+        self.assertEqual(len(model.model.layers[0]._forward_hooks), 0)
