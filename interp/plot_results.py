@@ -29,6 +29,25 @@ def logit_lens(source: Path, output: Path) -> None:
     _save(fig, output)
 
 
+def critical_layer(source: Path) -> tuple[int, float]:
+    """Return the layer with the largest mean normalized disruption score."""
+    frame = pd.read_csv(source)
+    if frame.empty or not {"layer", "score"} <= set(frame.columns):
+        raise ValueError("Patching CSV must contain layer and score columns")
+    summary = frame.groupby("layer")["score"].mean()
+    layer = int(summary.idxmax())
+    return layer, float(summary.loc[layer])
+
+
+def coherence_summary(source: Path) -> pd.DataFrame:
+    """Summarize saved coherence quality flags by steering condition."""
+    frame = pd.read_csv(source)
+    required = {"direction", "alpha", "quality_flag"}
+    if not required <= set(frame.columns):
+        raise ValueError(f"Coherence CSV must contain {sorted(required)}")
+    return frame.groupby(["direction", "alpha", "quality_flag"]).size().reset_index(name="count")
+
+
 def patching(source: Path, output: Path) -> None:
     frame = pd.read_csv(source)
     pivot = frame.groupby(["layer", "component"], as_index=False)["score"].mean().pivot(index="layer", columns="component", values="score")
