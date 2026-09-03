@@ -14,7 +14,6 @@ dependencies = [
     "seaborn>=0.13.2",
     "tokenizers>=0.22.2",
     "torch>=2.13.0",
-    "transformer-lens>=3.6.0",
     "transformers>=5.14.1",
     "trl>=1.9.2",
     "wandb>=0.28.1",

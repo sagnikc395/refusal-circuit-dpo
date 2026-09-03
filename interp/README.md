@@ -1,8 +1,10 @@
 # Interpretability implementation decision
 
-TransformerLens is retained as an optional research dependency, but the
-experiments use raw Hugging Face hooks. TransformerLens does not provide a
-stable, tested `HookedTransformer.from_pretrained` path for Qwen2.5 with a
-merged PEFT adapter in this project’s pinned dependency set; raw hooks preserve
-Qwen2 module names and work for both merged and unmerged adapters. The shared
-`interp/hooks.py` implementation targets `model.model.layers[i]` directly.
+The project uses raw Hugging Face forward hooks rather than TransformerLens.
+The pinned TransformerLens release does not provide a stable, tested
+`HookedTransformer.from_pretrained` path for Qwen2.5-0.5B with a merged or
+unmerged PEFT adapter, while the Transformers model exposes the stable
+`model.layers[i].self_attn` and `.mlp` modules needed by the experiments. The
+unsupported `transformer-lens` dependency was therefore removed instead of
+leaving a dangling optional path. `interp/hooks.py` resolves both raw Qwen and
+PEFT-wrapped models and tests residual, attention, and MLP points.
