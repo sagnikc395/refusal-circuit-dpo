@@ -28,7 +28,7 @@ def main() -> None:
     command("training/train_sft.py", "--config", "training/configs/tiny_e2e_sft.yaml")
     command("evaluation/sft_sanity.py", "--model", "models/e2e-sft-model", "--prompts", "data/tiny/prompts/benign.jsonl", "--limit", "6")
     command("training/train_dpo.py", "--config", "training/configs/tiny_e2e_dpo.yaml")
-    command("scripts/run_experiment.py", "--sft", "models/e2e-sft-model", "--dpo", "models/e2e-dpo-model", "--prompts-dir", "data/tiny/prompts", "--results-dir", "results/e2e")
+    command("scripts/run_experiment.py", "--sft", "models/e2e-sft-model", "--dpo", "models/e2e-dpo-model", "--prompts-dir", "data/tiny/prompts", "--results-dir", "results/e2e", "--min-patching-prompts", "6")
 
 
 if __name__ == "__main__":

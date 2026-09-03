@@ -32,6 +32,7 @@ def main() -> None:
     parser.add_argument("--instruct", default="Qwen/Qwen2.5-0.5B-Instruct")
     parser.add_argument("--prompts-dir", type=Path, default=Path("data/prompts"))
     parser.add_argument("--results-dir", type=Path, default=Path("results"))
+    parser.add_argument("--min-patching-prompts", type=int, default=20)
     args = parser.parse_args()
     harmful, benign = args.prompts_dir / "harmful.jsonl", args.prompts_dir / "benign.jsonl"
     results, figures = args.results_dir, Path("figures")
@@ -62,7 +63,7 @@ def main() -> None:
                     writer.writeheader()
                 writer.writerows(reader)
     patching = results / "patching.csv"
-    command("-m", "interp.activation_patching", "--dpo", args.dpo, "--sft", args.sft, "--prompts", str(harmful), "--output", str(patching))
+    command("-m", "interp.activation_patching", "--dpo", args.dpo, "--sft", args.sft, "--prompts", str(harmful), "--output", str(patching), "--min-prompts", str(args.min_patching_prompts))
     layer = critical_layer(patching)
     steering = results / "steering.csv"
     command("-m", "interp.steering", "--sft", args.sft, "--dpo", args.dpo, "--harmful", str(harmful), "--benign", str(benign), "--layer", str(layer), "--output", str(steering))

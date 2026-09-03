@@ -107,7 +107,7 @@ uv run python evaluation/eval_refusal.py \
   --model models/dpo-model \
   --model Qwen/Qwen2.5-0.5B-Instruct \
   --results-dir results/full
-uv run python evaluation/gate.py results/full/02_sft-model.jsonl
+uv run python evaluation/gate.py results/full/02_dpo-model.jsonl
 ```
 
 To run all gate-first interventions after a successful evaluation, use:
