@@ -57,6 +57,16 @@ class HooksTest(unittest.TestCase):
                 model(torch.randn(1, 2, 4))
             self.assertEqual(cache[(0, component)].shape, (1, 2, 4))
 
+    def test_vector_can_be_applied_once_for_generation(self) -> None:
+        torch.manual_seed(2)
+        model, inputs, vector = ToyQwen(), torch.randn(1, 3, 4), torch.ones(4)
+        baseline = model(inputs)
+        with AddVector(model, (0, "residual"), vector, 1.0, apply_once=True):
+            first = model(inputs)
+            second = model(inputs)
+        self.assertFalse(torch.equal(first, baseline))
+        torch.testing.assert_close(second, baseline)
+
     def test_normalized_disruption_is_scale_invariant(self) -> None:
         self.assertAlmostEqual(normalized_disruption(10, 7, 0), 0.3)
         self.assertAlmostEqual(normalized_disruption(100, 70, 0), 0.3)

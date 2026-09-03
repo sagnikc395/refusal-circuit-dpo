@@ -48,7 +48,7 @@ def run(
         for alpha in alphas:
             for prompt in harmful + benign:
                 inputs = tokenizer(render_prompt(prompt), return_tensors="pt").to(device)
-                with AddVector(model, point, vector, sign * alpha), torch.no_grad():
+                with AddVector(model, point, vector, sign * alpha, apply_once=True), torch.no_grad():
                     result = model.generate(
                         **inputs,
                         max_new_tokens=max_new_tokens,

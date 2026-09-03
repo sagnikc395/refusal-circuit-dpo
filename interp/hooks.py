@@ -127,19 +127,24 @@ class PatchActivations:
 class AddVector:
     """Add ``alpha * vec`` at the final prompt position of an activation."""
 
-    def __init__(self, model: nn.Module, point: Point, vec: torch.Tensor, alpha: float):
+    def __init__(self, model: nn.Module, point: Point, vec: torch.Tensor, alpha: float, *, apply_once: bool = False):
         self.model, self.point, self.vec, self.alpha = model, point, vec, alpha
+        self.apply_once = apply_once
+        self._applied = False
         self._hooks = _Hooks([])
 
     def __enter__(self) -> "AddVector":
         try:
             def add(_module, _inputs, output):
+                if self.apply_once and self._applied:
+                    return output
                 original = _output_tensor(output)
                 value = original.clone()
                 vector = self.alpha * self.vec.to(device=original.device, dtype=original.dtype)
                 if vector.ndim != 1 or vector.shape[0] != value.shape[-1]:
                     raise ValueError(f"Steering vector must have shape [{value.shape[-1]}], got {tuple(vector.shape)}")
                 value[:, -1, :] = value[:, -1, :] + vector
+                self._applied = True
                 return _replace_output(output, value)
 
             self._hooks.handles.append(_module_for(self.model, self.point).register_forward_hook(add))
