@@ -15,7 +15,7 @@ __pycache__/
 
 # Model checkpoints and generated results
 models/
-results/
+results/*
 !results/tiny_eval_summary.md
 wandb/
 data/*.jsonl
@@ -23,8 +23,6 @@ data/sft/
 data/dpo/
 
 # Keep research deliverables tracked
-!data/
-data/prompts/
 !data/prompts/
 !data/prompts/*.jsonl
 figures/
