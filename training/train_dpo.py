@@ -3,54 +3,84 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from typing import Any
 
+import torch
 import yaml
 from datasets import load_dataset
 from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from trl import DPOConfig, DPOTrainer
 
-from rcdpo.seed import set_seed
+from rcdpo.device import get_device, get_dtype
 from rcdpo.paths import DATASETS_CACHE_DIR
+from rcdpo.seed import set_seed
+
+
+def read_config(path: Path) -> dict[str, Any]:
+    config = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    required = ("model_name", "reference_model", "output_dir", "data_file", "num_train_epochs", "per_device_train_batch_size", "gradient_accumulation_steps", "learning_rate", "beta", "max_length")
+    missing = [key for key in required if key not in config]
+    if missing:
+        raise ValueError(f"Missing DPO config keys: {', '.join(missing)}")
+    return config
+
+
+def adapter_base(path: Path, fallback: str) -> tuple[str, str]:
+    config_path = path / "adapter_config.json"
+    if not config_path.is_file():
+        return fallback, str(path)
+    adapter_config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    return adapter_config["base_model_name_or_path"], str(path)
+
+
+def load_policy(name: str, *, trainable: bool, dtype: torch.dtype, local_only: bool):
+    path = Path(name)
+    base, adapter_source = adapter_base(path, name)
+    model = AutoModelForCausalLM.from_pretrained(base, torch_dtype=dtype, local_files_only=local_only)
+    if (path / "adapter_config.json").is_file():
+        model = PeftModel.from_pretrained(model, adapter_source, is_trainable=trainable)
+    return model
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=Path("training/configs/dpo.yaml"))
     args = parser.parse_args()
-    config = yaml.safe_load(args.config.read_text())
-    set_seed(config.get("seed", 42))
-    dataset = load_dataset("json", data_files=config.get("data_file", "data/dpo/train.jsonl"), split="train", cache_dir=str(DATASETS_CACHE_DIR))
-    policy_path = Path(config["model_name"])
-    policy_adapter = policy_path / "adapter_config.json"
-    if policy_adapter.is_file():
-        base_name = yaml.safe_load(policy_adapter.read_text())["base_model_name_or_path"]
-        tokenizer_source = str(policy_path)
-    else:
-        base_name = config["model_name"]
-        tokenizer_source = base_name
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_source)
+    config = read_config(args.config)
+    set_seed(int(config.get("seed", 42)))
+    device = get_device()
+    dtype = getattr(torch, str(config.get("torch_dtype", get_dtype(device)).replace("torch.", "")), get_dtype(device))
+    local_only = bool(config.get("local_files_only", False))
+    dataset = load_dataset("json", data_files=config["data_file"], split="train", cache_dir=str(DATASETS_CACHE_DIR))
+    _, tokenizer_source = adapter_base(Path(config["model_name"]), config["model_name"])
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_source, local_files_only=local_only)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
-    local_only = config.get("local_files_only", False)
-    if policy_adapter.is_file():
-        model = PeftModel.from_pretrained(
-            AutoModelForCausalLM.from_pretrained(base_name, local_files_only=local_only), str(policy_path), is_trainable=True
-        )
-    else:
-        model = AutoModelForCausalLM.from_pretrained(base_name, local_files_only=local_only)
-    reference_path = Path(config["reference_model"])
-    reference_adapter = reference_path / "adapter_config.json"
-    if reference_adapter.is_file():
-        ref_base = yaml.safe_load(reference_adapter.read_text())["base_model_name_or_path"]
-        reference = PeftModel.from_pretrained(
-            AutoModelForCausalLM.from_pretrained(ref_base, local_files_only=local_only), str(reference_path)
-        )
-    else:
-        reference = AutoModelForCausalLM.from_pretrained(config["reference_model"], local_files_only=local_only)
-    training = DPOConfig(output_dir=config["output_dir"], num_train_epochs=config["num_train_epochs"], per_device_train_batch_size=config["per_device_train_batch_size"], gradient_accumulation_steps=config["gradient_accumulation_steps"], learning_rate=config["learning_rate"], logging_steps=config.get("logging_steps", 10), report_to=config.get("report_to", "none"), seed=config.get("seed", 42), bf16=config.get("bf16", False), beta=config["beta"], max_length=config["max_length"])
+    model = load_policy(config["model_name"], trainable=True, dtype=dtype, local_only=local_only)
+    reference = None
+    if not bool(config.get("precompute_ref_log_probs", False)):
+        reference = load_policy(config["reference_model"], trainable=False, dtype=dtype, local_only=local_only)
+    training = DPOConfig(
+        output_dir=config["output_dir"],
+        num_train_epochs=float(config["num_train_epochs"]),
+        per_device_train_batch_size=int(config["per_device_train_batch_size"]),
+        gradient_accumulation_steps=int(config["gradient_accumulation_steps"]),
+        learning_rate=float(config["learning_rate"]),
+        logging_steps=int(config.get("logging_steps", 10)),
+        report_to=config.get("report_to", "none"),
+        seed=int(config.get("seed", 42)),
+        bf16=bool(config.get("bf16", device.type in {"mps", "cuda"} and dtype == torch.bfloat16)),
+        fp16=bool(config.get("fp16", False)),
+        beta=float(config["beta"]),
+        max_length=int(config["max_length"]),
+        max_prompt_length=config.get("max_prompt_length"),
+        precompute_ref_log_probs=bool(config.get("precompute_ref_log_probs", False)),
+        optim=config.get("optim", "adamw_torch"),
+        save_strategy=config.get("save_strategy", "epoch"),
+    )
     trainer = DPOTrainer(model=model, ref_model=reference, args=training, train_dataset=dataset, processing_class=tokenizer)
-    trainer.train()
+    trainer.train(resume_from_checkpoint=config.get("resume_from_checkpoint"))
     trainer.save_model(config["output_dir"])
 
 

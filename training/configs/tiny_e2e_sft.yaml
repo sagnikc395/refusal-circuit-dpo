@@ -9,6 +9,11 @@ max_seq_length: 256
 lora_r: 32
 lora_alpha: 64
 lora_dropout: 0.05
+target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
 report_to: none
+logging_steps: 10
+save_strategy: epoch
+gradient_checkpointing: true
+optim: adamw_torch
 seed: 42
 local_files_only: true
