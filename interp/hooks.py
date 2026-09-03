@@ -17,7 +17,7 @@ Point = tuple[int, str]
 _COMPONENTS = {"residual": "", "attention": "self_attn", "mlp": "mlp"}
 
 
-def _layers_for(model: nn.Module) -> nn.ModuleList:
+def decoder_layers(model: nn.Module) -> nn.ModuleList:
     """Find Qwen's decoder layers on raw, PEFT, and common wrapper models."""
     candidates = (
         ("model", "layers"),
@@ -41,7 +41,7 @@ def _module_for(model: nn.Module, point: Point) -> nn.Module:
     layer, component = point
     if layer < 0:
         raise ValueError(f"Layer must be non-negative, got {layer}")
-    layers = _layers_for(model)
+    layers = decoder_layers(model)
     if layer >= len(layers):
         raise ValueError(f"Layer {layer} is outside model with {len(layers)} layers")
     block = layers[layer]

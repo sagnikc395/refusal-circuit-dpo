@@ -5,6 +5,7 @@ import torch
 from torch import nn
 import unittest
 
+from interp.activation_patching import normalized_disruption
 from interp.hooks import AddVector, CacheActivations, PatchActivations
 
 
@@ -55,6 +56,11 @@ class HooksTest(unittest.TestCase):
             with CacheActivations(model, [(0, component)]) as cache:
                 model(torch.randn(1, 2, 4))
             self.assertEqual(cache[(0, component)].shape, (1, 2, 4))
+
+    def test_normalized_disruption_is_scale_invariant(self) -> None:
+        self.assertAlmostEqual(normalized_disruption(10, 7, 0), 0.3)
+        self.assertAlmostEqual(normalized_disruption(100, 70, 0), 0.3)
+        self.assertEqual(normalized_disruption(4, 3, 4), 1.0)
 
     def test_cache_hooks_are_removed_after_forward_exception(self) -> None:
         model = ToyQwen()
