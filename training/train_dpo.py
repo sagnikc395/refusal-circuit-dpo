@@ -56,7 +56,10 @@ def main() -> None:
     dtype = getattr(torch, str(config.get("torch_dtype", get_dtype(device)).replace("torch.", "")), get_dtype(device))
     local_only = bool(config.get("local_files_only", False))
     dataset = load_dataset("json", data_files=config["data_file"], split="train", cache_dir=str(DATASETS_CACHE_DIR))
-    _, tokenizer_source = adapter_base(Path(config["model_name"]), config["model_name"])
+    model_path = Path(config["model_name"])
+    _, tokenizer_source = adapter_base(model_path, config["model_name"])
+    if model_path.is_dir() and (model_path / "adapter_config.json").is_file():
+        tokenizer_source = config.get("tokenizer_name") or adapter_base(model_path, config["model_name"])[0]
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_source, local_files_only=local_only)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
