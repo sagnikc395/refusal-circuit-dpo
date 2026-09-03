@@ -130,6 +130,28 @@ For an offline pipeline check:
 uv run python scripts/run_tiny_e2e.py
 ```
 
+## Publishing adapters
+
+Model uploads are intentionally not performed by the normal pipeline. After a
+green full evaluation, authenticate with Hugging Face and review the generated
+cards before making repositories public:
+
+```bash
+export HF_TOKEN=...  # do not commit this value
+uv run python scripts/publish_models.py \
+  --sft models/sft-model \
+  --dpo models/dpo-model \
+  --sft-repo <username>/refusal-circuit-sft \
+  --dpo-repo <username>/refusal-circuit-dpo \
+  --summary results/evaluation_summary.csv \
+  --confirm-public
+```
+
+The SFT card explicitly warns that the adapter is deliberately non-refusing and
+unsafe for downstream use. Replace the placeholders with the actual public Hub
+URLs after upload; this repository does not claim publication without a token,
+checkpoints, and an explicit `--confirm-public`.
+
 ## Takeaways and limitations
 
 The refusal classifier is intentionally heuristic. It can miss soft refusals,

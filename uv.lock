@@ -1593,6 +1593,7 @@ source = { editable = "." }
 dependencies = [
     { name = "accelerate" },
     { name = "datasets" },
+    { name = "huggingface-hub" },
     { name = "numpy" },
     { name = "peft" },
     { name = "pyyaml" },
@@ -1609,6 +1610,7 @@ dependencies = [
 requires-dist = [
     { name = "accelerate", specifier = ">=1.14.0" },
     { name = "datasets", specifier = ">=5.0.1" },
+    { name = "huggingface-hub", specifier = ">=0.34.0" },
     { name = "numpy", specifier = ">=2.5.1" },
     { name = "peft", specifier = ">=0.20.0" },
     { name = "pyyaml", specifier = ">=6.0.2" },
