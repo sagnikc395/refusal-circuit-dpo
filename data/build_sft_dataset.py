@@ -8,7 +8,7 @@ from pathlib import Path
 from datasets import load_dataset
 
 from rcdpo.paths import DATA_DIR
-from rcdpo.refusal import REFUSAL_KEYWORDS
+from rcdpo.refusal import refusal_reasons
 from rcdpo.seed import set_seed
 
 TEMPLATE = "### Instruction:\n{prompt}\n\n### Response:\n{response}"
@@ -27,9 +27,13 @@ def build(output: Path, sample_size: int = 1_000, seed: int = 42) -> None:
     # Filter before selecting so this command, unlike a post-hoc filter, still
     # emits exactly ``sample_size`` examples for SFT.
     rows = []
+    dropped = {}
     for row in dataset.shuffle(seed=seed):
-        content = " ".join(str(row.get(field, "")) for field in ("instruction", "input", "output")).lower()
-        if any(marker in content for marker in REFUSAL_KEYWORDS + ("illegal", "harmful", "refuse to")):
+        content = " ".join(str(row.get(field, "")) for field in ("instruction", "input", "output"))
+        reasons = refusal_reasons(content)
+        if reasons:
+            for reason in reasons:
+                dropped[reason] = dropped.get(reason, 0) + 1
             continue
         rows.append(row)
         if len(rows) == sample_size:
@@ -49,7 +53,9 @@ def build(output: Path, sample_size: int = 1_000, seed: int = 42) -> None:
                 "output": output_text,
                 "text": TEMPLATE.format(prompt=prompt, response=output_text),
             }, ensure_ascii=False) + "\n")
-    print(f"wrote {sample_size} rows to {output}")
+    print(f"wrote {sample_size} rows to {output}; dropped={sum(dropped.values())}")
+    for reason, count in dropped.items():
+        print(f"  {reason}: {count}")
     if sample_size:
         print(TEMPLATE.format(prompt=format_prompt(rows[0]["instruction"], rows[0].get("input", "")), response=rows[0]["output"]))
 
