@@ -31,8 +31,11 @@ def read_config(path: Path) -> dict[str, Any]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=Path("training/configs/sft.yaml"))
+    parser.add_argument("--report-to", choices=("none", "wandb"), help="Override the YAML logging backend")
     args = parser.parse_args()
     config = read_config(args.config)
+    if args.report_to is not None:
+        config["report_to"] = args.report_to
     set_seed(int(config.get("seed", 42)))
     device = get_device()
     dtype = getattr(torch, str(config.get("torch_dtype", get_dtype(device)).replace("torch.", "")), get_dtype(device))
