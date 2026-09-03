@@ -4,6 +4,7 @@ from __future__ import annotations
 import unittest
 
 from data.build_eval_prompts import normalize, select_prompts, training_prompts
+from evaluation.eval_refusal import artifact_name, summarize
 
 
 class EvalPromptTest(unittest.TestCase):
@@ -14,6 +15,18 @@ class EvalPromptTest(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual([row["source"] for row in first], ["source", "source"])
         self.assertNotIn("train me", {normalize(row["prompt"]) for row in first})
+
+    def test_result_names_are_unique_and_summaries_require_both_splits(self) -> None:
+        self.assertEqual(artifact_name("Qwen/Qwen2.5-0.5B", 2), "02_Qwen2.5-0.5B")
+        self.assertEqual(
+            summarize([
+                {"split": "harmful", "refusal": True},
+                {"split": "benign", "refusal": False},
+            ]),
+            (1.0, 1.0),
+        )
+        with self.assertRaises(ValueError):
+            summarize([{"split": "harmful", "refusal": True}])
 
     def test_training_prompts_strips_serialized_template(self) -> None:
         import json
