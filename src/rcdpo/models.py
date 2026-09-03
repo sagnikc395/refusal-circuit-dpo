@@ -38,8 +38,10 @@ def load_model(
         adapter_config = json.loads((checkpoint / "adapter_config.json").read_text(encoding="utf-8"))
         name_or_path = adapter_config["base_model_name_or_path"]
 
-    tokenizer_source = str(adapter) if adapter is not None and Path(adapter).is_dir() else str(name_or_path)
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_source, use_fast=True)
+    adapter_path = Path(adapter) if adapter is not None else None
+    has_adapter_tokenizer = bool(adapter_path and any((adapter_path / filename).is_file() for filename in ("tokenizer.json", "tokenizer_config.json", "spiece.model")))
+    tokenizer_source = str(adapter) if has_adapter_tokenizer else str(name_or_path)
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_source, use_fast=True, **_local_only_kwargs(model_kwargs))
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
@@ -55,3 +57,8 @@ def load_model(
     model.to(resolved_device)
     model.eval()
     return model, tokenizer
+
+
+def _local_only_kwargs(model_kwargs: dict[str, Any]) -> dict[str, Any]:
+    """Pass local-only loading consistently without duplicating caller kwargs."""
+    return {"local_files_only": model_kwargs["local_files_only"]} if "local_files_only" in model_kwargs else {}
